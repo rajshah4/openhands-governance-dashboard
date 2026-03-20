@@ -2,7 +2,13 @@
 
 A comprehensive governance and security monitoring dashboard for OpenHands AI agent conversations.
 
-![Dashboard Screenshot](docs/dashboard-preview.png)
+## Screenshots
+
+### Overview Tab
+![Overview Dashboard](screenshots/overview.png)
+
+### Security & Permissions Tab
+![Security Dashboard](screenshots/security.png)
 
 ## Features
 
