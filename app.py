@@ -309,35 +309,102 @@ def extract_tool_calls(events):
 
 @app.route('/api/security/overview')
 def get_security_overview():
-    """Get security and governance overview across active conversations."""
+    """Get security and governance overview using V1 App Server API."""
     convos = fetch_all_conversations()
-    active = [c for c in convos if c.get("conversation_url") and c.get("session_api_key")]
     
     all_tool_usage = defaultdict(int)
     all_security_levels = {"LOW": 0, "MEDIUM": 0, "HIGH": 0, "UNKNOWN": 0}
     all_sensitive_actions = []
+    command_types = defaultdict(int)
     conversations_analyzed = 0
     
-    for conv in active[:5]:  # Analyze up to 5 active conversations
+    # Use V1 App Server API - works for all conversations
+    for conv in convos[:20]:  # Analyze 20 recent conversations
         try:
-            headers = {"X-Session-API-Key": conv["session_api_key"]}
-            url = f"{conv['conversation_url']}/events/search?limit=200"
-            resp = requests.get(url, headers=headers, timeout=15)
+            url = f"{API_BASE}/api/v1/conversation/{conv['id']}/events/search?limit=100"
+            resp = requests.get(url, headers=get_headers(), timeout=20)
             
-            if resp.status_code == 200:
+            if resp.status_code == 200 and resp.text:
                 events = resp.json().get("items", [])
-                analysis = extract_tool_calls(events)
                 
-                for tool, count in analysis["tool_usage"].items():
-                    all_tool_usage[tool] += count
-                
-                for level, count in analysis["security_levels"].items():
-                    all_security_levels[level] += count
-                
-                for action in analysis["sensitive_actions"]:
-                    action["conversation_id"] = conv["id"]
-                    action["conversation_title"] = conv.get("title", "Untitled")
-                    all_sensitive_actions.append(action)
+                for event in events:
+                    # Track tool usage
+                    tool_name = event.get("tool_name")
+                    if tool_name:
+                        all_tool_usage[tool_name] += 1
+                    
+                    # Track security risk
+                    risk = event.get("security_risk")
+                    if risk:
+                        all_security_levels[risk] += 1
+                    
+                    # Get action details for sensitive command detection
+                    action = event.get("action", {})
+                    if isinstance(action, dict):
+                        cmd = action.get("command", "")
+                        if cmd:
+                            # Categorize commands
+                            if "ls " in cmd or cmd.startswith("ls"):
+                                command_types["ls (list)"] += 1
+                            if "cat " in cmd:
+                                command_types["cat (read)"] += 1
+                            if "curl " in cmd:
+                                command_types["curl (network)"] += 1
+                                all_sensitive_actions.append({
+                                    "conversation_id": conv["id"],
+                                    "conversation_title": conv.get("title", "Untitled"),
+                                    "category": "network_access",
+                                    "pattern": "curl",
+                                    "risk_level": "MEDIUM",
+                                    "timestamp": event.get("timestamp"),
+                                    "command": cmd[:100]
+                                })
+                            if "pip install" in cmd:
+                                command_types["pip install"] += 1
+                                all_sensitive_actions.append({
+                                    "conversation_id": conv["id"],
+                                    "conversation_title": conv.get("title", "Untitled"),
+                                    "category": "system_modification",
+                                    "pattern": "pip install",
+                                    "risk_level": "MEDIUM",
+                                    "timestamp": event.get("timestamp"),
+                                    "command": cmd[:100]
+                                })
+                            if "rm " in cmd:
+                                command_types["rm (delete)"] += 1
+                                all_sensitive_actions.append({
+                                    "conversation_id": conv["id"],
+                                    "conversation_title": conv.get("title", "Untitled"),
+                                    "category": "destructive_operation",
+                                    "pattern": "rm",
+                                    "risk_level": "MEDIUM",
+                                    "timestamp": event.get("timestamp"),
+                                    "command": cmd[:100]
+                                })
+                            if ".env" in cmd:
+                                all_sensitive_actions.append({
+                                    "conversation_id": conv["id"],
+                                    "conversation_title": conv.get("title", "Untitled"),
+                                    "category": "credential_access",
+                                    "pattern": ".env file",
+                                    "risk_level": "HIGH",
+                                    "timestamp": event.get("timestamp"),
+                                    "command": cmd[:100]
+                                })
+                            if any(x in cmd.lower() for x in ["token", "secret", "password", "api_key"]):
+                                all_sensitive_actions.append({
+                                    "conversation_id": conv["id"],
+                                    "conversation_title": conv.get("title", "Untitled"),
+                                    "category": "credential_access",
+                                    "pattern": "credential keyword",
+                                    "risk_level": "HIGH",
+                                    "timestamp": event.get("timestamp"),
+                                    "command": cmd[:100]
+                                })
+                            if "git " in cmd:
+                                command_types["git"] += 1
+                            if "python" in cmd:
+                                command_types["python"] += 1
                 
                 conversations_analyzed += 1
         except Exception as e:
@@ -345,13 +412,15 @@ def get_security_overview():
     
     return jsonify({
         "conversations_analyzed": conversations_analyzed,
-        "active_conversations": len(active),
+        "active_conversations": len([c for c in convos if c.get("sandbox_status") == "RUNNING"]),
         "tool_usage": dict(sorted(all_tool_usage.items(), key=lambda x: -x[1])),
         "security_levels": all_security_levels,
-        "sensitive_actions": all_sensitive_actions[:30],
+        "command_types": dict(sorted(command_types.items(), key=lambda x: -x[1])),
+        "sensitive_actions": all_sensitive_actions[:50],
         "risk_summary": {
-            "high_risk_actions": all_security_levels["HIGH"],
-            "medium_risk_actions": all_security_levels["MEDIUM"],
+            "high_risk_actions": all_security_levels.get("HIGH", 0),
+            "medium_risk_actions": all_security_levels.get("MEDIUM", 0),
+            "low_risk_actions": all_security_levels.get("LOW", 0),
             "sensitive_patterns_detected": len(all_sensitive_actions)
         }
     })
@@ -432,44 +501,47 @@ def get_security_alerts():
 
 @app.route('/api/governance/permissions')
 def get_permissions_summary():
-    """Get summary of tool/permission usage patterns."""
+    """Get summary of tool/permission usage patterns using V1 App Server API."""
     convos = fetch_all_conversations()
-    active = [c for c in convos if c.get("conversation_url") and c.get("session_api_key")]
     
     permission_categories = {
         "file_system": ["file_editor", "read_file", "write_file", "list_files"],
         "terminal": ["terminal", "bash", "shell", "cmd"],
         "browser": ["browser_navigate", "browser_click", "browser_get_state", "browser_type"],
-        "external_api": ["tavily", "slack", "notion", "github", "gitlab"],
-        "code_execution": ["python", "node", "execute"],
+        "external_api": ["tavily", "slack", "notion", "github", "gitlab", "shttp"],
+        "task_management": ["task_tracker", "finish"],
     }
     
     usage_by_category = defaultdict(int)
     tool_details = defaultdict(lambda: {"count": 0, "conversations": set()})
+    analyzed = 0
     
-    for conv in active[:3]:  # Sample from 3 active
+    # Use V1 App Server API
+    for conv in convos[:15]:
         try:
-            headers = {"X-Session-API-Key": conv["session_api_key"]}
-            url = f"{conv['conversation_url']}/events/search?limit=200"
-            resp = requests.get(url, headers=headers, timeout=15)
+            url = f"{API_BASE}/api/v1/conversation/{conv['id']}/events/search?limit=100"
+            resp = requests.get(url, headers=get_headers(), timeout=20)
             
-            if resp.status_code == 200:
+            if resp.status_code == 200 and resp.text:
                 events = resp.json().get("items", [])
-                event_str = json.dumps(events)
                 
-                # Count tool usage
-                matches = re.findall(r'"tool_name":\s*"([^"]+)"', event_str)
-                for tool in matches:
-                    tool_details[tool]["count"] += 1
-                    tool_details[tool]["conversations"].add(conv["id"])
-                    
-                    # Categorize
-                    for category, patterns in permission_categories.items():
-                        if any(p in tool.lower() for p in patterns):
-                            usage_by_category[category] += 1
-                            break
-                    else:
-                        usage_by_category["other"] += 1
+                for event in events:
+                    tool = event.get("tool_name")
+                    if tool:
+                        tool_details[tool]["count"] += 1
+                        tool_details[tool]["conversations"].add(conv["id"])
+                        
+                        # Categorize
+                        categorized = False
+                        for category, patterns in permission_categories.items():
+                            if any(p in tool.lower() for p in patterns):
+                                usage_by_category[category] += 1
+                                categorized = True
+                                break
+                        if not categorized:
+                            usage_by_category["other"] += 1
+                
+                analyzed += 1
         except:
             continue
     
@@ -480,7 +552,8 @@ def get_permissions_summary():
     return jsonify({
         "by_category": dict(usage_by_category),
         "tool_details": dict(sorted(tool_details.items(), key=lambda x: -x[1]["count"])[:15]),
-        "categories_defined": list(permission_categories.keys())
+        "categories_defined": list(permission_categories.keys()),
+        "conversations_analyzed": analyzed
     })
 
 

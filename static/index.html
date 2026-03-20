@@ -1211,67 +1211,69 @@
             
             if (tools.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;">No tool usage data available</td></tr>';
-                return;
+            } else {
+                // Determine tool categories and risk
+                const getCategory = (tool) => {
+                    if (tool.includes('terminal') || tool.includes('bash')) return 'terminal';
+                    if (tool.includes('file')) return 'file_system';
+                    if (tool.includes('browser')) return 'browser';
+                    if (tool.includes('slack') || tool.includes('notion') || tool.includes('github') || tool.includes('shttp')) return 'external_api';
+                    if (tool.includes('tavily')) return 'web_search';
+                    if (tool.includes('task') || tool.includes('finish')) return 'task_management';
+                    return 'other';
+                };
+                
+                const getRisk = (tool) => {
+                    if (tool.includes('terminal')) return 'medium';
+                    if (tool.includes('slack') || tool.includes('notion')) return 'medium';
+                    if (tool.includes('browser')) return 'low';
+                    if (tool.includes('file_editor')) return 'medium';
+                    return 'low';
+                };
+                
+                tbody.innerHTML = tools.map(([name, info]) => `
+                    <tr>
+                        <td><code class="model-badge">${name}</code></td>
+                        <td><span class="category-badge">${getCategory(name)}</span></td>
+                        <td>${info.count}</td>
+                        <td>${info.conversations}</td>
+                        <td><span class="risk-badge ${getRisk(name)}">${getRisk(name).toUpperCase()}</span></td>
+                    </tr>
+                `).join('');
             }
             
-            // Determine tool categories and risk
-            const getCategory = (tool) => {
-                if (tool.includes('terminal') || tool.includes('bash')) return 'terminal';
-                if (tool.includes('file')) return 'file_system';
-                if (tool.includes('browser')) return 'browser';
-                if (tool.includes('slack') || tool.includes('notion') || tool.includes('github')) return 'external_api';
-                if (tool.includes('tavily')) return 'web_search';
-                return 'other';
-            };
-            
-            const getRisk = (tool) => {
-                if (tool.includes('terminal')) return 'medium';
-                if (tool.includes('slack') || tool.includes('notion')) return 'medium';
-                if (tool.includes('browser')) return 'low';
-                if (tool.includes('file_editor')) return 'medium';
-                return 'low';
-            };
-            
-            tbody.innerHTML = tools.map(([name, info]) => `
-                <tr>
-                    <td><code class="model-badge">${name}</code></td>
-                    <td><span class="category-badge">${getCategory(name)}</span></td>
-                    <td>${info.count}</td>
-                    <td>${info.conversations}</td>
-                    <td><span class="risk-badge ${getRisk(name)}">${getRisk(name).toUpperCase()}</span></td>
-                </tr>
-            `).join('');
-            
             // Render permission category chart
-            if (securityCharts.perm) securityCharts.perm.destroy();
             const categories = data.by_category || {};
-            securityCharts.perm = new Chart(document.getElementById('permChart'), {
-                type: 'polarArea',
-                data: {
-                    labels: Object.keys(categories),
-                    datasets: [{
-                        data: Object.values(categories),
-                        backgroundColor: [
-                            'rgba(99, 102, 241, 0.7)',
-                            'rgba(16, 185, 129, 0.7)',
-                            'rgba(245, 158, 11, 0.7)',
-                            'rgba(239, 68, 68, 0.7)',
-                            'rgba(139, 92, 246, 0.7)',
-                            'rgba(59, 130, 246, 0.7)'
-                        ]
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: {
-                            position: 'right',
-                            labels: { color: '#e7e9ea', boxWidth: 12 }
+            if (Object.keys(categories).length > 0) {
+                if (securityCharts.perm) securityCharts.perm.destroy();
+                securityCharts.perm = new Chart(document.getElementById('permChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: Object.keys(categories),
+                        datasets: [{
+                            data: Object.values(categories),
+                            backgroundColor: [
+                                'rgba(99, 102, 241, 0.8)',
+                                'rgba(16, 185, 129, 0.8)',
+                                'rgba(245, 158, 11, 0.8)',
+                                'rgba(239, 68, 68, 0.8)',
+                                'rgba(139, 92, 246, 0.8)',
+                                'rgba(59, 130, 246, 0.8)'
+                            ]
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'right',
+                                labels: { color: '#e7e9ea', boxWidth: 12, font: { size: 11 } }
+                            }
                         }
                     }
-                }
-            });
+                });
+            }
         }
         
         function renderAlerts(alerts) {
