@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OpenHands Governance Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0f1419;
+            --bg-secondary: #1a1f2e;
+            --bg-card: #232b3e;
+            --text-primary: #e7e9ea;
+            --text-secondary: #8b98a5;
+            --accent: #6366f1;
+            --accent-light: #818cf8;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --border: #2f3b52;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-card) 100%);
+            padding: 1.5rem 2rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        
+        .header h1 .icon {
+            font-size: 1.75rem;
+        }
+        
+        .header-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .last-updated {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        .btn {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        
+        .btn:hover {
+            background: var(--accent-light);
+        }
+        
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .stat-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.25rem;
+            border: 1px solid var(--border);
+        }
+        
+        .stat-card .label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+        }
+        
+        .stat-card .subtext {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+        
+        .stat-card.accent .value { color: var(--accent-light); }
+        .stat-card.success .value { color: var(--success); }
+        .stat-card.warning .value { color: var(--warning); }
+        .stat-card.danger .value { color: var(--danger); }
+        
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .chart-card {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1.25rem;
+            border: 1px solid var(--border);
+        }
+        
+        .chart-card h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--text-secondary);
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 250px;
+        }
+        
+        .filters-section {
+            background: var(--bg-card);
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            border: 1px solid var(--border);
+            margin-bottom: 1.5rem;
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .filters-section label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        .filters-section select {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.5rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            min-width: 180px;
+        }
+        
+        .conversations-table {
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+        
+        .table-header {
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .table-header h3 {
+            font-size: 1rem;
+            font-weight: 600;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 0.875rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        
+        th {
+            background: var(--bg-secondary);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        
+        tr:hover {
+            background: rgba(99, 102, 241, 0.1);
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .status-badge.running { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .status-badge.paused { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .status-badge.finished { background: rgba(99, 102, 241, 0.2); color: var(--accent-light); }
+        .status-badge.error { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        .status-badge.unknown { background: rgba(139, 152, 165, 0.2); color: var(--text-secondary); }
+        
+        .model-badge {
+            display: inline-block;
+            padding: 0.2rem 0.4rem;
+            background: var(--bg-secondary);
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-family: monospace;
+        }
+        
+        .conv-title {
+            max-width: 300px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .pagination {
+            padding: 1rem;
+            display: flex;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        
+        .pagination button {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+        }
+        
+        .pagination button:hover {
+            background: var(--accent);
+        }
+        
+        .pagination button:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        
+        .pagination span {
+            padding: 0.5rem 1rem;
+            color: var(--text-secondary);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-secondary);
+        }
+        
+        .loading::after {
+            content: '';
+            animation: dots 1.5s infinite;
+        }
+        
+        @keyframes dots {
+            0%, 20% { content: '.'; }
+            40% { content: '..'; }
+            60%, 100% { content: '...'; }
+        }
+        
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+        }
+        
+        .modal {
+            background: var(--bg-card);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow: auto;
+            border: 1px solid var(--border);
+        }
+        
+        .modal-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: var(--bg-card);
+        }
+        
+        .modal-header h3 {
+            font-size: 1rem;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        .modal-body {
+            padding: 1.5rem;
+        }
+        
+        .detail-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .detail-label {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            min-width: 140px;
+        }
+        
+        .detail-value {
+            font-size: 0.9rem;
+        }
+        
+        /* Tab styles */
+        .tab-buttons {
+            display: flex;
+            gap: 0.5rem;
+            margin-right: 1.5rem;
+        }
+        
+        .tab-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            color: var(--text-secondary);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: all 0.2s;
+        }
+        
+        .tab-btn:hover {
+            background: var(--bg-card);
+            color: var(--text-primary);
+        }
+        
+        .tab-btn.active {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        /* Alerts container */
+        .alerts-container {
+            max-height: 220px;
+            overflow-y: auto;
+        }
+        
+        .alert-item {
+            padding: 0.75rem;
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            border-left: 3px solid;
+        }
+        
+        .alert-item.warning {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: var(--warning);
+        }
+        
+        .alert-item.info {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: var(--accent);
+        }
+        
+        .alert-item.danger {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: var(--danger);
+        }
+        
+        .alert-item .alert-type {
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+        
+        .alert-item .alert-message {
+            font-size: 0.85rem;
+        }
+        
+        /* Risk badges */
+        .risk-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+        
+        .risk-badge.high { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        .risk-badge.medium { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .risk-badge.low { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        
+        /* Category badges */
+        .category-badge {
+            display: inline-block;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .filters-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .tab-buttons {
+                flex-direction: column;
+                margin-right: 0;
+                margin-bottom: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <h1>
+            <span class="icon">🛡️</span>
+            OpenHands Governance Dashboard
+        </h1>
+        <div class="header-actions">
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="showTab('overview')">📊 Overview</button>
+                <button class="tab-btn" onclick="showTab('security')">🔒 Security & Permissions</button>
+            </div>
+            <span class="last-updated" id="lastUpdated">Loading...</span>
+            <button class="btn" onclick="refreshData()" id="refreshBtn">🔄 Refresh</button>
+        </div>
+    </header>
+    
+    <div class="container">
+        <!-- Overview Tab -->
+        <div id="overviewTab" class="tab-content active">
+        <!-- Stats Cards -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card accent">
+                <div class="label">Total Conversations</div>
+                <div class="value" id="totalConvs">-</div>
+                <div class="subtext">All time</div>
+            </div>
+            <div class="stat-card success">
+                <div class="label">Active Sandboxes</div>
+                <div class="value" id="activeSandboxes">-</div>
+                <div class="subtext">Currently running</div>
+            </div>
+            <div class="stat-card warning">
+                <div class="label">Paused Sandboxes</div>
+                <div class="value" id="pausedSandboxes">-</div>
+                <div class="subtext">Preserving state</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Models Used</div>
+                <div class="value" id="modelsCount">-</div>
+                <div class="subtext">Unique LLMs</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Repositories</div>
+                <div class="value" id="reposCount">-</div>
+                <div class="subtext">Connected</div>
+            </div>
+        </div>
+        
+        <!-- Charts -->
+        <div class="charts-grid">
+            <div class="chart-card">
+                <h3>📊 Activity Over Time (Last 30 Days)</h3>
+                <div class="chart-container">
+                    <canvas id="activityChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>🤖 Model Distribution</h3>
+                <div class="chart-container">
+                    <canvas id="modelChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>📁 Top Repositories</h3>
+                <div class="chart-container">
+                    <canvas id="repoChart"></canvas>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3>⏰ Activity by Hour</h3>
+                <div class="chart-container">
+                    <canvas id="hourChart"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Filters -->
+        <div class="filters-section">
+            <div>
+                <label>Model:</label>
+                <select id="filterModel" onchange="loadConversations()">
+                    <option value="">All Models</option>
+                </select>
+            </div>
+            <div>
+                <label>Repository:</label>
+                <select id="filterRepo" onchange="loadConversations()">
+                    <option value="">All Repositories</option>
+                </select>
+            </div>
+            <div>
+                <label>Sandbox Status:</label>
+                <select id="filterStatus" onchange="loadConversations()">
+                    <option value="">All Statuses</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- Conversations Table -->
+        <div class="conversations-table">
+            <div class="table-header">
+                <h3>🗂️ Conversation Audit Log</h3>
+                <span id="tableCount"></span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Model</th>
+                        <th>Repository</th>
+                        <th>Sandbox Status</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="conversationsBody">
+                    <tr><td colspan="6" class="loading">Loading conversations</td></tr>
+                </tbody>
+            </table>
+            <div class="pagination">
+                <button onclick="prevPage()" id="prevBtn" disabled>← Previous</button>
+                <span id="pageInfo">Page 1</span>
+                <button onclick="nextPage()" id="nextBtn">Next →</button>
+            </div>
+        </div>
+        </div><!-- End Overview Tab -->
+        
+        <!-- Security Tab -->
+        <div id="securityTab" class="tab-content">
+            <!-- Security Stats -->
+            <div class="stats-grid">
+                <div class="stat-card danger">
+                    <div class="label">High Risk Actions</div>
+                    <div class="value" id="highRiskCount">-</div>
+                    <div class="subtext">Requiring review</div>
+                </div>
+                <div class="stat-card warning">
+                    <div class="label">Medium Risk Actions</div>
+                    <div class="value" id="mediumRiskCount">-</div>
+                    <div class="subtext">Monitored</div>
+                </div>
+                <div class="stat-card success">
+                    <div class="label">Low Risk Actions</div>
+                    <div class="value" id="lowRiskCount">-</div>
+                    <div class="subtext">Standard operations</div>
+                </div>
+                <div class="stat-card accent">
+                    <div class="label">Conversations Analyzed</div>
+                    <div class="value" id="convsAnalyzed">-</div>
+                    <div class="subtext">Active sandboxes</div>
+                </div>
+            </div>
+            
+            <!-- Security Charts -->
+            <div class="charts-grid">
+                <div class="chart-card">
+                    <h3>🔐 Security Risk Distribution</h3>
+                    <div class="chart-container">
+                        <canvas id="riskChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>🔧 Tool/Permission Usage</h3>
+                    <div class="chart-container">
+                        <canvas id="toolChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>📁 Permission Categories</h3>
+                    <div class="chart-container">
+                        <canvas id="permChart"></canvas>
+                    </div>
+                </div>
+                <div class="chart-card">
+                    <h3>⚠️ Alerts</h3>
+                    <div id="alertsList" class="alerts-container">
+                        <div class="loading">Loading alerts</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Sensitive Actions Table -->
+            <div class="conversations-table">
+                <div class="table-header">
+                    <h3>🚨 Sensitive Actions Log</h3>
+                    <span>Actions matching governance patterns</span>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>Conversation</th>
+                            <th>Category</th>
+                            <th>Risk Level</th>
+                            <th>Pattern Matched</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sensitiveActionsBody">
+                        <tr><td colspan="5" class="loading">Loading security analysis</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Permission Breakdown -->
+            <div class="conversations-table" style="margin-top: 1.5rem;">
+                <div class="table-header">
+                    <h3>🔑 Tool Permissions Breakdown</h3>
+                    <span>Detailed tool usage across conversations</span>
+                </div>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Tool Name</th>
+                            <th>Category</th>
+                            <th>Usage Count</th>
+                            <th>Conversations</th>
+                            <th>Risk Level</th>
+                        </tr>
+                    </thead>
+                    <tbody id="permissionsBody">
+                        <tr><td colspan="5" class="loading">Loading permissions</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div><!-- End Security Tab -->
+    </div>
+    
+    <!-- Detail Modal -->
+    <div class="modal-overlay" id="detailModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Conversation Details</h3>
+                <button class="modal-close" onclick="closeModal()">×</button>
+            </div>
+            <div class="modal-body" id="modalBody">
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentPage = 1;
+        const perPage = 15;
+        let totalConvs = 0;
+        let charts = {};
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            loadStats();
+            loadFilters();
+            loadConversations();
+        });
+        
+        async function loadStats() {
+            try {
+                const res = await fetch('/api/stats');
+                const stats = await res.json();
+                
+                document.getElementById('totalConvs').textContent = stats.total;
+                document.getElementById('activeSandboxes').textContent = stats.active_sandboxes;
+                document.getElementById('pausedSandboxes').textContent = stats.paused_sandboxes;
+                document.getElementById('modelsCount').textContent = Object.keys(stats.by_model).length;
+                document.getElementById('reposCount').textContent = Object.keys(stats.by_repository).length;
+                
+                if (stats.last_fetch) {
+                    document.getElementById('lastUpdated').textContent = 
+                        'Last updated: ' + new Date(stats.last_fetch).toLocaleString();
+                }
+                
+                renderCharts(stats);
+            } catch (err) {
+                console.error('Failed to load stats:', err);
+            }
+        }
+        
+        function renderCharts(stats) {
+            const chartColors = [
+                '#6366f1', '#818cf8', '#a5b4fc', '#c7d2fe',
+                '#10b981', '#34d399', '#6ee7b7',
+                '#f59e0b', '#fbbf24', '#fcd34d'
+            ];
+            
+            // Activity over time
+            if (charts.activity) charts.activity.destroy();
+            charts.activity = new Chart(document.getElementById('activityChart'), {
+                type: 'line',
+                data: {
+                    labels: Object.keys(stats.by_date),
+                    datasets: [{
+                        label: 'Conversations',
+                        data: Object.values(stats.by_date),
+                        borderColor: '#6366f1',
+                        backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { 
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#8b98a5', maxTicksLimit: 10 }
+                        },
+                        y: { 
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#8b98a5' },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+            
+            // Model distribution
+            if (charts.model) charts.model.destroy();
+            charts.model = new Chart(document.getElementById('modelChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(stats.by_model),
+                    datasets: [{
+                        data: Object.values(stats.by_model),
+                        backgroundColor: chartColors
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { color: '#e7e9ea', boxWidth: 12 }
+                        }
+                    }
+                }
+            });
+            
+            // Top repositories
+            if (charts.repo) charts.repo.destroy();
+            charts.repo = new Chart(document.getElementById('repoChart'), {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(stats.by_repository).map(r => r.length > 20 ? r.slice(0, 20) + '...' : r),
+                    datasets: [{
+                        label: 'Conversations',
+                        data: Object.values(stats.by_repository),
+                        backgroundColor: '#6366f1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { 
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#8b98a5' }
+                        },
+                        y: { 
+                            grid: { display: false },
+                            ticks: { color: '#8b98a5' }
+                        }
+                    }
+                }
+            });
+            
+            // Activity by hour
+            if (charts.hour) charts.hour.destroy();
+            charts.hour = new Chart(document.getElementById('hourChart'), {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(stats.by_hour),
+                    datasets: [{
+                        label: 'Conversations',
+                        data: Object.values(stats.by_hour),
+                        backgroundColor: '#10b981'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { 
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#8b98a5' }
+                        },
+                        y: { 
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: { color: '#8b98a5' },
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+        
+        async function loadFilters() {
+            try {
+                const res = await fetch('/api/filters');
+                const filters = await res.json();
+                
+                const modelSelect = document.getElementById('filterModel');
+                filters.models.forEach(m => {
+                    modelSelect.innerHTML += `<option value="${m}">${m}</option>`;
+                });
+                
+                const repoSelect = document.getElementById('filterRepo');
+                filters.repositories.forEach(r => {
+                    repoSelect.innerHTML += `<option value="${r}">${r}</option>`;
+                });
+                
+                const statusSelect = document.getElementById('filterStatus');
+                filters.statuses.forEach(s => {
+                    statusSelect.innerHTML += `<option value="${s}">${s}</option>`;
+                });
+            } catch (err) {
+                console.error('Failed to load filters:', err);
+            }
+        }
+        
+        async function loadConversations() {
+            const model = document.getElementById('filterModel').value;
+            const repo = document.getElementById('filterRepo').value;
+            const status = document.getElementById('filterStatus').value;
+            
+            let url = `/api/conversations?page=${currentPage}&per_page=${perPage}`;
+            if (model) url += `&model=${encodeURIComponent(model)}`;
+            if (repo) url += `&repository=${encodeURIComponent(repo)}`;
+            if (status) url += `&status=${encodeURIComponent(status)}`;
+            
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                
+                totalConvs = data.total;
+                document.getElementById('tableCount').textContent = `${data.total} total`;
+                
+                const tbody = document.getElementById('conversationsBody');
+                if (data.items.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;">No conversations found</td></tr>';
+                } else {
+                    tbody.innerHTML = data.items.map(c => `
+                        <tr>
+                            <td class="conv-title" title="${escapeHtml(c.title || 'Untitled')}">${escapeHtml(c.title || 'Untitled')}</td>
+                            <td><span class="model-badge">${(c.llm_model || 'unknown').split('/').pop()}</span></td>
+                            <td>${escapeHtml(c.selected_repository || 'No repository')}</td>
+                            <td><span class="status-badge ${(c.sandbox_status || 'unknown').toLowerCase()}">${c.sandbox_status || 'Unknown'}</span></td>
+                            <td>${formatDate(c.created_at)}</td>
+                            <td><button class="btn" onclick="showDetails('${c.id}')">View</button></td>
+                        </tr>
+                    `).join('');
+                }
+                
+                updatePagination();
+            } catch (err) {
+                console.error('Failed to load conversations:', err);
+            }
+        }
+        
+        function updatePagination() {
+            const totalPages = Math.ceil(totalConvs / perPage);
+            document.getElementById('pageInfo').textContent = `Page ${currentPage} of ${totalPages}`;
+            document.getElementById('prevBtn').disabled = currentPage <= 1;
+            document.getElementById('nextBtn').disabled = currentPage >= totalPages;
+        }
+        
+        function prevPage() {
+            if (currentPage > 1) {
+                currentPage--;
+                loadConversations();
+            }
+        }
+        
+        function nextPage() {
+            const totalPages = Math.ceil(totalConvs / perPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                loadConversations();
+            }
+        }
+        
+        async function showDetails(convId) {
+            try {
+                const res = await fetch(`/api/conversation/${convId}`);
+                const conv = await res.json();
+                
+                const modalBody = document.getElementById('modalBody');
+                modalBody.innerHTML = `
+                    <div class="detail-row">
+                        <span class="detail-label">Conversation ID:</span>
+                        <span class="detail-value" style="font-family:monospace;">${conv.id}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Title:</span>
+                        <span class="detail-value">${escapeHtml(conv.title || 'Untitled')}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Model:</span>
+                        <span class="detail-value"><span class="model-badge">${conv.llm_model || 'Unknown'}</span></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Repository:</span>
+                        <span class="detail-value">${escapeHtml(conv.selected_repository || 'None')}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Branch:</span>
+                        <span class="detail-value">${escapeHtml(conv.selected_branch || 'N/A')}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Sandbox Status:</span>
+                        <span class="detail-value"><span class="status-badge ${(conv.sandbox_status || 'unknown').toLowerCase()}">${conv.sandbox_status || 'Unknown'}</span></span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Execution Status:</span>
+                        <span class="detail-value">${conv.execution_status || 'N/A'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Sandbox ID:</span>
+                        <span class="detail-value" style="font-family:monospace;">${conv.sandbox_id || 'N/A'}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Created:</span>
+                        <span class="detail-value">${formatDate(conv.created_at)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">Updated:</span>
+                        <span class="detail-value">${formatDate(conv.updated_at)}</span>
+                    </div>
+                    <div class="detail-row">
+                        <span class="detail-label">PR Numbers:</span>
+                        <span class="detail-value">${conv.pr_number?.length ? conv.pr_number.join(', ') : 'None'}</span>
+                    </div>
+                    ${conv.conversation_url ? `
+                    <div class="detail-row">
+                        <span class="detail-label">Agent Server:</span>
+                        <span class="detail-value"><a href="${conv.conversation_url}" target="_blank" style="color:var(--accent-light);">Open →</a></span>
+                    </div>
+                    ` : ''}
+                `;
+                
+                document.getElementById('detailModal').classList.add('active');
+            } catch (err) {
+                console.error('Failed to load conversation details:', err);
+            }
+        }
+        
+        function closeModal() {
+            document.getElementById('detailModal').classList.remove('active');
+        }
+        
+        async function refreshData() {
+            const btn = document.getElementById('refreshBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Refreshing...';
+            
+            try {
+                await fetch('/api/refresh');
+                await loadStats();
+                await loadConversations();
+            } catch (err) {
+                console.error('Failed to refresh:', err);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '🔄 Refresh';
+            }
+        }
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return 'N/A';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+        }
+        
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+        
+        // Close modal on outside click
+        document.getElementById('detailModal').addEventListener('click', (e) => {
+            if (e.target.id === 'detailModal') closeModal();
+        });
+        
+        // Tab switching
+        function showTab(tabName) {
+            // Update buttons
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`.tab-btn[onclick="showTab('${tabName}')"]`).classList.add('active');
+            
+            // Update content
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            
+            // Load security data if switching to security tab
+            if (tabName === 'security') {
+                loadSecurityData();
+            }
+        }
+        
+        let securityCharts = {};
+        
+        async function loadSecurityData() {
+            try {
+                // Load security overview
+                const secRes = await fetch('/api/security/overview');
+                const secData = await secRes.json();
+                
+                document.getElementById('highRiskCount').textContent = secData.security_levels.HIGH || 0;
+                document.getElementById('mediumRiskCount').textContent = secData.security_levels.MEDIUM || 0;
+                document.getElementById('lowRiskCount').textContent = secData.security_levels.LOW || 0;
+                document.getElementById('convsAnalyzed').textContent = secData.conversations_analyzed;
+                
+                // Render security charts
+                renderSecurityCharts(secData);
+                
+                // Load sensitive actions
+                renderSensitiveActions(secData.sensitive_actions);
+                
+                // Load permissions
+                const permRes = await fetch('/api/governance/permissions');
+                const permData = await permRes.json();
+                renderPermissions(permData);
+                
+                // Load alerts
+                const alertRes = await fetch('/api/security/alerts');
+                const alertData = await alertRes.json();
+                renderAlerts(alertData.alerts);
+                
+            } catch (err) {
+                console.error('Failed to load security data:', err);
+            }
+        }
+        
+        function renderSecurityCharts(data) {
+            const chartColors = {
+                HIGH: '#ef4444',
+                MEDIUM: '#f59e0b',
+                LOW: '#10b981',
+                UNKNOWN: '#6b7280'
+            };
+            
+            // Risk distribution chart
+            if (securityCharts.risk) securityCharts.risk.destroy();
+            securityCharts.risk = new Chart(document.getElementById('riskChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['High Risk', 'Medium Risk', 'Low Risk', 'Unknown'],
+                    datasets: [{
+                        data: [
+                            data.security_levels.HIGH,
+                            data.security_levels.MEDIUM,
+                            data.security_levels.LOW,
+                            data.security_levels.UNKNOWN
+                        ],
+                        backgroundColor: [chartColors.HIGH, chartColors.MEDIUM, chartColors.LOW, chartColors.UNKNOWN]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { color: '#e7e9ea', boxWidth: 12 }
+                        }
+                    }
+                }
+            });
+            
+            // Tool usage chart
+            const topTools = Object.entries(data.tool_usage || {}).slice(0, 8);
+            if (securityCharts.tool) securityCharts.tool.destroy();
+            securityCharts.tool = new Chart(document.getElementById('toolChart'), {
+                type: 'bar',
+                data: {
+                    labels: topTools.map(t => t[0]),
+                    datasets: [{
+                        label: 'Usage Count',
+                        data: topTools.map(t => t[1]),
+                        backgroundColor: '#6366f1'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { color: 'rgba(255,255,255,0.1)' }, ticks: { color: '#8b98a5' } },
+                        y: { grid: { display: false }, ticks: { color: '#8b98a5' } }
+                    }
+                }
+            });
+        }
+        
+        function renderSensitiveActions(actions) {
+            const tbody = document.getElementById('sensitiveActionsBody');
+            if (!actions || actions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--success);">✓ No sensitive actions detected</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = actions.map(a => `
+                <tr>
+                    <td>${formatDate(a.timestamp)}</td>
+                    <td class="conv-title" title="${escapeHtml(a.conversation_title || '')}">${escapeHtml(a.conversation_title || a.conversation_id?.slice(0,8) || 'N/A')}</td>
+                    <td><span class="category-badge">${a.category || 'action'}</span></td>
+                    <td><span class="risk-badge ${(a.risk_level || 'medium').toLowerCase()}">${a.risk_level || 'MEDIUM'}</span></td>
+                    <td><code style="font-size:0.75rem;">${escapeHtml(a.pattern || 'security_risk: HIGH')}</code></td>
+                </tr>
+            `).join('');
+        }
+        
+        function renderPermissions(data) {
+            const tbody = document.getElementById('permissionsBody');
+            const tools = Object.entries(data.tool_details || {});
+            
+            if (tools.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;">No tool usage data available</td></tr>';
+                return;
+            }
+            
+            // Determine tool categories and risk
+            const getCategory = (tool) => {
+                if (tool.includes('terminal') || tool.includes('bash')) return 'terminal';
+                if (tool.includes('file')) return 'file_system';
+                if (tool.includes('browser')) return 'browser';
+                if (tool.includes('slack') || tool.includes('notion') || tool.includes('github')) return 'external_api';
+                if (tool.includes('tavily')) return 'web_search';
+                return 'other';
+            };
+            
+            const getRisk = (tool) => {
+                if (tool.includes('terminal')) return 'medium';
+                if (tool.includes('slack') || tool.includes('notion')) return 'medium';
+                if (tool.includes('browser')) return 'low';
+                if (tool.includes('file_editor')) return 'medium';
+                return 'low';
+            };
+            
+            tbody.innerHTML = tools.map(([name, info]) => `
+                <tr>
+                    <td><code class="model-badge">${name}</code></td>
+                    <td><span class="category-badge">${getCategory(name)}</span></td>
+                    <td>${info.count}</td>
+                    <td>${info.conversations}</td>
+                    <td><span class="risk-badge ${getRisk(name)}">${getRisk(name).toUpperCase()}</span></td>
+                </tr>
+            `).join('');
+            
+            // Render permission category chart
+            if (securityCharts.perm) securityCharts.perm.destroy();
+            const categories = data.by_category || {};
+            securityCharts.perm = new Chart(document.getElementById('permChart'), {
+                type: 'polarArea',
+                data: {
+                    labels: Object.keys(categories),
+                    datasets: [{
+                        data: Object.values(categories),
+                        backgroundColor: [
+                            'rgba(99, 102, 241, 0.7)',
+                            'rgba(16, 185, 129, 0.7)',
+                            'rgba(245, 158, 11, 0.7)',
+                            'rgba(239, 68, 68, 0.7)',
+                            'rgba(139, 92, 246, 0.7)',
+                            'rgba(59, 130, 246, 0.7)'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: { color: '#e7e9ea', boxWidth: 12 }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function renderAlerts(alerts) {
+            const container = document.getElementById('alertsList');
+            if (!alerts || alerts.length === 0) {
+                container.innerHTML = '<div class="alert-item info"><div class="alert-type">Status</div><div class="alert-message">✓ No active alerts</div></div>';
+                return;
+            }
+            
+            container.innerHTML = alerts.map(a => `
+                <div class="alert-item ${a.level.toLowerCase()}">
+                    <div class="alert-type">${a.type}</div>
+                    <div class="alert-message">${escapeHtml(a.message)}</div>
+                </div>
+            `).join('');
+        }
+    </script>
+</body>
+</html>
