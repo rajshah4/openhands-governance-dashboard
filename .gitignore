@@ -12,6 +12,7 @@ stats.json
 sample_events.json
 full_events.json
 server.log
+conversations_cache.json
 
 # IDE
 .vscode/
