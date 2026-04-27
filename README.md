@@ -7,6 +7,9 @@ A comprehensive governance and security monitoring dashboard for OpenHands AI ag
 ### Overview Tab
 ![Overview Dashboard](screenshots/overview.png)
 
+### Operations Tab
+Operations observability is included in the dashboard and surfaces background-job activity, trigger sources, automation runs, and parent/subagent lineage where available.
+
 ### Security & Permissions Tab
 ![Security Dashboard](screenshots/security.png)
 
@@ -19,6 +22,14 @@ A comprehensive governance and security monitoring dashboard for OpenHands AI ag
 - **Repository Activity** - Track which codebases agents interact with
 - **Activity Trends** - 30-day usage patterns and hourly distribution
 - **Conversation Audit Log** - Searchable, filterable list of all conversations
+
+### 🧭 Operations Tab
+- **Background Job Monitoring** - Track automation, resolver, and Slack-triggered conversations
+- **Running and Recent Jobs** - See active work plus a 24-hour morning review queue
+- **Automation Run Breakdown** - Count distinct automation runs and top automation names
+- **Trigger Visibility** - Break down background work by trigger source
+- **Lineage Tracking** - Surface parent/child conversation links and observed subagents
+- **Operational Telemetry** - Review repository, status, cost, and token usage per job
 
 ### 🔒 Security & Permissions Tab
 - **Risk Distribution** - Visualize HIGH/MEDIUM/LOW risk actions
@@ -88,6 +99,11 @@ Open http://localhost:12000 in your browser.
 | `GET /api/filters` | Available filter options |
 | `GET /api/refresh` | Force refresh conversation data |
 
+### Operations APIs
+| Endpoint | Description |
+|----------|-------------|
+| `GET /api/operations/overview` | Morning-review summary of background jobs, triggers, automation runs, and lineage |
+
 ### Security APIs
 | Endpoint | Description |
 |----------|-------------|
@@ -103,8 +119,7 @@ governance-dashboard/
 ├── app.py              # Flask backend API
 ├── static/
 │   └── index.html      # Single-page dashboard frontend
-├── conversations.json  # Cached conversation data
-├── stats.json          # Cached statistics
+├── conversations_cache.json  # Persisted API cache for cold starts
 └── README.md
 ```
 
@@ -132,6 +147,8 @@ This dashboard uses the OpenHands V1 API:
 - Monitor sandbox resource usage
 - Optimize costs by tracking active vs paused sandboxes
 - Analyze usage patterns for capacity planning
+- Review scheduled and background agent activity every morning
+- Inspect automation lineage and subagent fan-out
 
 ## Contributing
 
